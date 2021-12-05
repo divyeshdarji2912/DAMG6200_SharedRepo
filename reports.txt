@@ -1,0 +1,112 @@
+----CURRENT_TENANT VIEW-----
+create or replace view current_tenant_view
+as 
+select landlord.landlord_id, landlord.landlord_first_name, landlord.landlord_last_name,apartment.apartment_id, customers.customer_first_name, 
+customers.customer_last_name,lease_details.lease_status from landlord
+join apartment
+ON landlord.landlord_id = apartment.landlord_id
+JOIN
+lease_details
+on 
+apartment.apartment_id= lease_details.apartment_id
+join
+CUSTOMERS
+ON lease_details.lease_id = customers.lease_id
+order by landlord.landlord_first_name;
+
+SELECT * FROM current_tenant_view;
+
+
+----tracking maintenance requests for a particular apartment------
+select  apartment.apartment_id, maintenance_requests.request_id, maintenance_requests.maintenance_status, 
+COUNT(maintenance_requests.request_id) OVER (PARTITION BY apartment.apartment_id) AS Total_no_of_requests
+from apartment
+join
+maintenance_requests
+on apartment.apartment_id = maintenance_requests.apartment_id
+ORDER BY TO_NUMBER(SUBSTR(apartment.apartment_id,2)), Total_no_of_requests desc
+
+
+-----Each landlord can check the number of apartments he/she is leasing------
+select landlord.landlord_first_name,landlord.landlord_last_name, apartment.apartment_id, COUNT(apartment.apartment_id) OVER (PARTITION BY landlord.landlord_first_name,landlord.landlord_last_name) 
+AS Total_no_of_apartments
+from landlord
+join 
+apartment
+on landlord.landlord_id = apartment.landlord_id 
+
+
+---total commission earned by real estate management in each year assuming commission to be 20% of the total revenue generated as a monthly rent from customers by each year-------
+with t as (
+            select extract ( year from lease_details.start_date) as year,  
+            sum(apartment.monthly_rent)  OVER (PARTITION BY extract ( year from lease_details.start_date)) as total_revenue_generated,
+            COUNT(lease_details.lease_id) OVER (PARTITION BY extract ( year from lease_details.start_date)) AS Total_no_of_apartments_on_lease 
+            from apartment
+            join
+            lease_details
+            on apartment.apartment_id = lease_details.apartment_id
+            )
+
+select DISTINCT YEAR, 0.2*total_revenue_generated as tot_commission_earned
+from t 
+order by year;
+
+---
+select  sum(apartment.monthly_rent)  OVER (PARTITION BY extract ( year from lease_details.start_date)) as total_revenue_generated, apartment.apartment_id, lease_details.lease_id,
+extract ( year from lease_details.start_date) as year
+from apartment
+join
+lease_details
+on apartment.apartment_id = lease_details.apartment_id
+
+
+
+with t as (
+            select extract ( year from payment.transaction_date) as year,  
+            sum(payment.amount_transferred)  OVER (PARTITION BY extract ( year from payment.transaction_date)) as total_revenue_generated,
+            COUNT(lease_details.lease_id) OVER (PARTITION BY extract ( year from payment.transaction_date)) AS Total_no_of_apartments_on_lease 
+            from lease_details
+            join
+            payment
+            on lease_details.lease_id = payment.lease_id
+            )
+
+select DISTINCT YEAR, 0.2*total_revenue_generated as tot_commission_earned
+from t 
+order by year;
+
+
+
+-- how many apartments were booked in a particular locality in each year--
+select apartment_type.locality, apartment.apartment_id, lease_details.lease_id, extract (year from lease_details.start_date) as lease_start_date,
+count(apartment_type.locality) over (partition by  apartment_type.locality,extract (year from lease_details.start_date)) as total_no_of_apartment
+from apartment_type
+join 
+apartment
+on apartment_type.apartment_type_id=apartment.apartment_type_id
+join
+lease_details
+on apartment.apartment_id = lease_details.apartment_id
+order by total_no_of_apartment desc
+
+---how many customers pay the rent within starting 5 days of the lease start date
+select lease_details.start_date, payment.payment_id, payment.transaction_date, customers.customer_first_name
+from payment
+join
+lease_details
+on lease_details.lease_id= payment.lease_id
+join customers
+on 
+lease_details.lease_id = customers.lease_id
+
+
+---how fast the maintenance requests were closed under which employee----
+select maintenance_requests.apartment_id, maintenance_requests.request_date, maintenance_requests.request_closed_date,
+employee.employee_first_name, employee.employee_last_name,
+to_date(maintenance_requests.request_closed_date)-to_date(maintenance_requests.request_date) as tot_no_of_days
+from 
+maintenance_requests
+join 
+employee
+on maintenance_requests.employee_id = employee.employee_id
+order by tot_no_of_days
