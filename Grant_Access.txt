@@ -2,7 +2,7 @@
 
 
 set SERVEROUTPUT ON;
-create or replace procedure Grant_Access_Janitor
+create or replace procedure Grant_access_Manager
 (U_ROLE_ID employee.role_id%TYPE,
 U_EMPLOYEE_ID employee.role_id%TYPE,
 U_Name employee.EMPLOYEE_FIRST_NAME%TYPE,
@@ -13,15 +13,16 @@ cnt varchar(1000 char);
 BEGIN
 SELECT U_ROLE_ID into cnt FROM employee_roles where role_id = U_ROLE_ID;
 SELECT U_Name || U_EMPLOYEE_ID  into v_name FROM employee where employee_first_name=U_NAme and employee_id = U_EMPLOYEE_ID and role_id = U_ROLE_ID;
-If (cnt='R3' and U_Name || U_EMPLOYEE_ID =v_name) then
+If (cnt='R2' and U_Name || U_EMPLOYEE_ID =v_name) then
 EXECUTE IMMEDIATE 'CREATE USER ' || v_Name||' IDENTIFIED BY ' ||U_Password;
-EXECUTE IMMEDIATE 'GRANT SELECT ON MAINTENANCE_REQUESTS TO ' || v_Name;
+EXECUTE IMMEDIATE 'GRANT SELECT ON LEASE_DETAILS TO ' || v_Name;
+EXECUTE IMMEDIATE 'GRANT SELECT, INSERT, UPDATE, DELETE ON APARTMENT TO ' || v_Name;
 EXECUTE IMMEDIATE 'GRANT CREATE SESSION TO ' || v_Name;
-DBMS_OUTPUT.PUT_LINE('User access granted to R3');
+DBMS_OUTPUT.PUT_LINE('User access granted to R2');
 else
 DBMS_OUTPUT.PUT_LINE('User Access not granted');
 end if;
 Exception when no_data_found then
 DBMS_OUTPUT.PUT_LINE('Employee Name and its respective role Id and employee ID does not Match');
-end Grant_Access_Janitor
+end Grant_access_Manager
 
